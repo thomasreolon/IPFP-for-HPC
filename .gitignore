@@ -16,6 +16,12 @@
 *.gch
 *.pch
 
+# Dataset
+data/
+
+# Temporary Files
+tmp*
+
 # Libraries
 *.lib
 *.a
@@ -50,3 +56,5 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+.vscode
