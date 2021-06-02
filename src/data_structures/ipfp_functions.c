@@ -11,17 +11,18 @@ double_dense_matrix get_alphas_row(double_sparse_matrix *working_matrix, double_
     double_dense_matrix alphas;
     create_double_dense_matrix(&alphas, 1, local_cbg->n_cols);
     double* array_sum = alphas.data;  /// omp do not support alphas.data as reduce parameter
+    int j;
 
     // sum along columns
     memset( alphas.data, 0, local_cbg->n_cols*sizeof(double) );
-# pragma omp parallel for num_threads(n_threads) reduction(+:array_sum[:local_cbg->n_cols])
-    for (int j=0; j<working_matrix->n_elements; j++){
+/*# pragma omp parallel for num_threads(n_threads) reduction(+:array_sum[:local_cbg->n_cols])*/
+    for (j=0; j<working_matrix->n_elements; j++){
         int idx = working_matrix->data[j].col;
         array_sum[idx] += working_matrix->data[j].val;
     }
     
     // alphas
-    for (int j=0; j<local_cbg->n_cols; j++){
+    for (j=0; j<local_cbg->n_cols; j++){
         if (alphas.data[j]<FLT_EPSILON)
             alphas.data[j] = 1.;
         alphas.data[j] = local_cbg->data[(i*alphas.n_cols)+j] / alphas.data[j];
@@ -34,17 +35,18 @@ double_dense_matrix get_alphas_col(double_sparse_matrix *working_matrix, double_
     double_dense_matrix alphas;
     create_double_dense_matrix(&alphas, local_poi->n_rows, 1);
     double* array_sum = alphas.data;
+    int j;
 
     // sum along columns
     memset( alphas.data, 0, alphas.n_rows*sizeof(double) );
-# pragma omp parallel for num_threads(n_threads) reduction(+:array_sum[:local_poi->n_rows])
-    for (int j=0; j<working_matrix->n_elements; j++){
+/*# pragma omp parallel for num_threads(n_threads) reduction(+:array_sum[:local_poi->n_rows])*/
+    for ( j=0; j<working_matrix->n_elements; j++){
         int idx = working_matrix->data[j].row;
         array_sum[idx] += working_matrix->data[j].val;
     }
     
     // alphas
-    for (int j=0; j<alphas.n_rows; j++){
+    for ( j=0; j<alphas.n_rows; j++){
         if (alphas.data[j]<FLT_EPSILON)
             alphas.data[j] = 1.;
         alphas.data[j] = local_poi->data[(j*alphas.n_cols)+i] / alphas.data[j];
@@ -56,13 +58,15 @@ double_dense_matrix get_alphas_col(double_sparse_matrix *working_matrix, double_
 
 
 void multiply_cols_by_alphas(double_sparse_matrix *working_matrix, double_dense_matrix *alphas){
-    for (int i=0; i<working_matrix->n_elements; i++){
+    int i;
+    for (i=0; i<working_matrix->n_elements; i++){
         double coeff = alphas->data[working_matrix->data[i].col];
         working_matrix->data[i].val *= coeff;
     }
 }
 void multiply_rows_by_alphas(double_sparse_matrix *working_matrix, double_dense_matrix *alphas){
-    for (int i=0; i<working_matrix->n_elements; i++){
+    int i;
+    for (i=0; i<working_matrix->n_elements; i++){
         double coeff = alphas->data[working_matrix->data[i].row];
         working_matrix->data[i].val *= coeff;
     }
@@ -95,10 +99,11 @@ void save_result_matrix(const char *filename, matrix_element *elements, int n_ro
 
 double_dense_matrix sparse_to_dense(const double_sparse_matrix mat){
     double_dense_matrix dense;
+    int i;
 
     create_double_dense_matrix(&dense, mat.n_rows, mat.n_cols);
     memset(dense.data, 0, sizeof(double)*mat.n_rows*mat.n_cols);
-    for(int i=0; i<mat.n_elements; i++){
+    for(i=0; i<mat.n_elements; i++){
         int idx = mat.data[i].row * mat.n_cols + mat.data[i].col;
         dense.data[idx] = mat.data[i].val;
     }

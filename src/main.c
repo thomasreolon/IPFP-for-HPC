@@ -8,7 +8,7 @@
 #include "data_structures/ipfp_functions.h"
 #include "mpi_communications.h"
 
-#define NUM_ITERATIONS 100
+#define NUM_ITERATIONS 5
 
 int main(int argc, char** argv) {
     if (argc < 6) {
@@ -40,6 +40,7 @@ int main(int argc, char** argv) {
     // how many output matrices
     const int n_threads = atoi(argv[5]);
     const int num_hours = get_num_hours(&cbg_marginals_matrix, world_rank, argc, argv);
+    int i, j; // used in for loops
 
     int poi_counts[world_size], poi_displacements[world_size];
     int cbg_counts[world_size], cbg_displacements[world_size];
@@ -61,20 +62,20 @@ int main(int argc, char** argv) {
         free_double_dense_matrix(&cbg_marginals_matrix);
 
         // write matrix when received
-        for (int i=0; i<num_hours; i++)
+        for (i=0; i<num_hours; i++)
             receive_and_save_result_matrix(argv[4], aggregate_visit_matrix);
             
     }else{
         // elaborate matrix
-/*# pragma omp parallel for num_threads(NUM_THREADS)*/
-        for (int i=0; i<local_poi.n_cols; i++){
+# pragma omp parallel for num_threads(n_threads)
+        for (i=0; i<local_poi.n_cols; i++){
             double_sparse_matrix working_matrix = clone_submatrix(aggregate_visit_matrix);
 
             // hour  =  offset wrt the other processes         + actual processed column
             int hour = (num_hours / (world_size-1))*(world_rank-1) + i;
 
             //// IPFP algorithm
-            for (int j=0; j<NUM_ITERATIONS; j++){
+            for (j=0; j<NUM_ITERATIONS; j++){
                 if (j%2==0){
                     // alphas = cbg_marginals /  sum_along_columns
                     double_dense_matrix alphas = get_alphas_row(&working_matrix, &local_cbg, i, n_threads);
