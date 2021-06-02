@@ -5,10 +5,10 @@
 #include "dense_matrix.h"
 
 
-double_dense_matrix get_alphas_row(double_sparse_matrix *working_matrix, double_dense_matrix *local_cbg, int i);
+double_dense_matrix get_alphas_row(double_sparse_matrix *working_matrix, double_dense_matrix *local_cbg, int i,  int n_threads);
 
 
-double_dense_matrix get_alphas_col(double_sparse_matrix *working_matrix, double_dense_matrix *local_poi, int i);
+double_dense_matrix get_alphas_col(double_sparse_matrix *working_matrix, double_dense_matrix *local_poi, int i, int n_threads);
 
 void multiply_cols_by_alphas(double_sparse_matrix *working_matrix, double_dense_matrix *alphas);
 

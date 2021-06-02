@@ -1,20 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <omp.h>
 #include <string.h>
 #include <float.h>
 #include "ipfp_functions.h"
 
 
-double_dense_matrix get_alphas_row(double_sparse_matrix *working_matrix, double_dense_matrix *local_cbg, int i){
+double_dense_matrix get_alphas_row(double_sparse_matrix *working_matrix, double_dense_matrix *local_cbg, int i, int n_threads){
     double_dense_matrix alphas;
     create_double_dense_matrix(&alphas, 1, local_cbg->n_cols);
+    double* array_sum = alphas.data;  /// omp do not support alphas.data as reduce parameter
 
     // sum along columns
     memset( alphas.data, 0, local_cbg->n_cols*sizeof(double) );
+# pragma omp parallel for num_threads(n_threads) reduction(+:array_sum[:local_cbg->n_cols])
     for (int j=0; j<working_matrix->n_elements; j++){
         int idx = working_matrix->data[j].col;
-        alphas.data[idx] += working_matrix->data[j].val;
+        array_sum[idx] += working_matrix->data[j].val;
     }
     
     // alphas
@@ -23,19 +26,21 @@ double_dense_matrix get_alphas_row(double_sparse_matrix *working_matrix, double_
             alphas.data[j] = 1.;
         alphas.data[j] = local_cbg->data[(i*alphas.n_cols)+j] / alphas.data[j];
     }
-
     return alphas;
 }
 
-double_dense_matrix get_alphas_col(double_sparse_matrix *working_matrix, double_dense_matrix *local_poi, int i){
+
+double_dense_matrix get_alphas_col(double_sparse_matrix *working_matrix, double_dense_matrix *local_poi, int i, int n_threads){
     double_dense_matrix alphas;
     create_double_dense_matrix(&alphas, local_poi->n_rows, 1);
+    double* array_sum = alphas.data;
 
     // sum along columns
     memset( alphas.data, 0, alphas.n_rows*sizeof(double) );
+# pragma omp parallel for num_threads(n_threads) reduction(+:array_sum[:local_poi->n_rows])
     for (int j=0; j<working_matrix->n_elements; j++){
         int idx = working_matrix->data[j].row;
-        alphas.data[idx] += working_matrix->data[j].val;
+        array_sum[idx] += working_matrix->data[j].val;
     }
     
     // alphas

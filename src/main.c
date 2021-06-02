@@ -1,4 +1,5 @@
 #include <mpi.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -7,11 +8,11 @@
 #include "data_structures/ipfp_functions.h"
 #include "mpi_communications.h"
 
-#define NUM_ITERATIONS 2
+#define NUM_ITERATIONS 100
 
 int main(int argc, char** argv) {
-    if (argc < 5) {
-        printf("Usage: distributedIPFP [aggregate_visit_matrix] [week_poi_marginals] [week_cbg_marginals] [output_dir] [num_hour]\n");
+    if (argc < 6) {
+        printf("Usage: distributedIPFP [aggregate_visit_matrix] [week_poi_marginals] [week_cbg_marginals] [output_dir] [n_threads] <num_hour>\n");
         exit(1);
     }
 
@@ -37,6 +38,7 @@ int main(int argc, char** argv) {
         free_double_sparse_matrix(&tmp_poi);
     }
     // how many output matrices
+    const int n_threads = atoi(argv[5]);
     const int num_hours = get_num_hours(&cbg_marginals_matrix, world_rank, argc, argv);
 
     int poi_counts[world_size], poi_displacements[world_size];
@@ -64,6 +66,7 @@ int main(int argc, char** argv) {
             
     }else{
         // elaborate matrix
+/*# pragma omp parallel for num_threads(NUM_THREADS)*/
         for (int i=0; i<local_poi.n_cols; i++){
             double_sparse_matrix working_matrix = clone_submatrix(aggregate_visit_matrix);
 
@@ -74,12 +77,12 @@ int main(int argc, char** argv) {
             for (int j=0; j<NUM_ITERATIONS; j++){
                 if (j%2==0){
                     // alphas = cbg_marginals /  sum_along_columns
-                    double_dense_matrix alphas = get_alphas_row(&working_matrix, &local_cbg, i);
+                    double_dense_matrix alphas = get_alphas_row(&working_matrix, &local_cbg, i, n_threads);
                     multiply_cols_by_alphas(&working_matrix, &alphas);
                     free_double_dense_matrix(&alphas);
                 }else{
                     // alphas = poi_marginals /  sum_along_rows
-                    double_dense_matrix alphas = get_alphas_col(&working_matrix, &local_poi, i);  // hour->the values of the poi are not shifted 
+                    double_dense_matrix alphas = get_alphas_col(&working_matrix, &local_poi, i, n_threads);  // hour->the values of the poi are not shifted 
                     multiply_rows_by_alphas(&working_matrix, &alphas);
                     free_double_dense_matrix(&alphas);
                 }

@@ -9,8 +9,8 @@
 
 int get_num_hours(double_dense_matrix *cbg, int rank, int argc, char *argv[]){
     int num_hours = cbg->n_rows;
-    if (argc==6 && atoi(argv[5])>0)
-        num_hours = atoi(argv[5]);            // user specified the number of hours
+    if (argc==7 && atoi(argv[6])>0)
+        num_hours = atoi(argv[6]);            // user specified the number of hours
     else
         MPI_Bcast( &num_hours , 1 , MPI_INT , 0 , MPI_COMM_WORLD);
     return num_hours;
