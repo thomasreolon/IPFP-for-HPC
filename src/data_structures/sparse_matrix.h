@@ -1,6 +1,8 @@
 #ifndef __SPARSE_MATRIX_H
 #define __SPARSE_MATRIX_H 1
 
+#include "dense_matrix.h"
+
 typedef struct matrix_element_struct
 {
     int row;
@@ -39,5 +41,7 @@ double_sparse_matrix load_double_sparse_matrix(const char *filename);
 
 
 double_sparse_matrix clone_submatrix(const double_sparse_matrix original_submatrix);
+
+void util_print_sparse(const double_sparse_matrix submatrix);
 
 #endif

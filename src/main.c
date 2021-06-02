@@ -4,9 +4,10 @@
 #include <time.h>
 #include "data_structures/sparse_matrix.h"
 #include "data_structures/dense_matrix.h"
+#include "data_structures/ipfp_functions.h"
 #include "mpi_communications.h"
 
-#define NUM_ITERATIONS 100
+#define NUM_ITERATIONS 1
 #define NUM_HOURS 3
 
 int main(int argc, char** argv) {
@@ -37,7 +38,6 @@ int main(int argc, char** argv) {
     double_sparse_matrix local_poi;
     double_dense_matrix local_cbg;
 
-
     // broadcast matrix
     broadcast_sparse_matrix(&aggregate_visit_matrix, world_rank);
 
@@ -49,19 +49,24 @@ int main(int argc, char** argv) {
 
     if (world_rank==0){
         // write matrix when received
-
     }else{
         // elaborate matrix
         for (int i=0; i<local_poi.n_cols; i++){
             double_sparse_matrix working_matrix = clone_submatrix(aggregate_visit_matrix);
 
             for (int j=0; j<NUM_ITERATIONS; j++){
-                if (j%2==0){
+                if (j%2==1){
                     // alphas = cbg_marginals /  sum_along_columns
-
+                    double_dense_matrix alphas = get_alphas_row(&working_matrix, &local_cbg, i);
+                    multiply_cols_by_alphas(&working_matrix, &alphas);
                 }else{
+                    printf("--------------------\n");
+                    util_print_sparse(working_matrix);
                     // alphas = poi_marginals /  sum_along_rows
-
+                    double_dense_matrix alphas = get_alphas_col(&working_matrix, &local_poi, i);
+                    util_print_dense(alphas);
+                    multiply_rows_by_alphas(&working_matrix, &alphas);
+                    util_print_sparse(working_matrix);
                 }
             }
 

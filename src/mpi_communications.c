@@ -95,8 +95,9 @@ double_sparse_matrix scatter_poi_matrix(double_sparse_matrix *mat, int n_rows, i
     }
 
     // scatter hours between processes
-    hour_per_proc = hour_per_proc + (rank==world_size)? tot_columns % world_size : 0;
+    hour_per_proc += (rank==world_size)? tot_columns % world_size : 0;
     build_mpi_tuple(&mpi_tuple);
+    printf("%d %d (%d) \n", n_rows, hour_per_proc, rank);
     create_double_sparse_matrix(&local_mat, n_rows, hour_per_proc, counts[rank]);
     MPI_Scatterv(buffer, counts, displacements, mpi_tuple, local_mat.data, counts[rank], mpi_tuple, 0, MPI_COMM_WORLD);
 

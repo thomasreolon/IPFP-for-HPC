@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "dense_matrix.h"
 
 void create_double_dense_matrix(double_dense_matrix *mat, int n_rows, int n_cols) {
@@ -8,7 +9,7 @@ void create_double_dense_matrix(double_dense_matrix *mat, int n_rows, int n_cols
     mat->data = malloc(n_rows * n_cols * sizeof(double));
 }
 
-void clean_double_dense_matrix(double_dense_matrix* matrix) {
+void free_double_dense_matrix(double_dense_matrix* matrix) {
     free(matrix->data);
 }
 
@@ -42,4 +43,11 @@ double_dense_matrix load_double_dense_matrix(const char *filename) {
     }
     fclose(in_file);
     return loaded_matrix;
+}
+
+void util_print_dense(const double_dense_matrix mat){
+    printf("dense [%dx%d]\n", mat.n_rows, mat.n_cols);
+    for (int i=0; i<mat.n_cols*mat.n_rows; i++)
+        printf("- (%d,%d): %lf\n", i/mat.n_cols, i%mat.n_cols, mat.data[i]);
+    printf("\n");
 }

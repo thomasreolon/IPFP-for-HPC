@@ -62,3 +62,13 @@ double_sparse_matrix clone_submatrix(const double_sparse_matrix original_submatr
     memcpy(clone.data, original_submatrix.data, sizeof(matrix_element)*clone.n_elements); // copy the data
     return clone;
 }
+
+
+void util_print_sparse(const double_sparse_matrix submatrix){
+    printf("n_elements=%d\n", submatrix.n_elements);
+    int i;
+    for (i=0; i<submatrix.n_elements; i++){
+        printf("- (%d,%d): %lf\n", submatrix.data[i].row, submatrix.data[i].col, submatrix.data[i].val);
+    }
+    printf("\n");
+}
