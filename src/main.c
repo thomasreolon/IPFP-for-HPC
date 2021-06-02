@@ -62,6 +62,7 @@ int main(int argc, char** argv) {
         free_double_dense_matrix(&cbg_marginals_matrix);
 
         // write matrix when received
+# pragma omp parallel for num_threads(n_threads)
         for (i=0; i<num_hours; i++)
             receive_and_save_result_matrix(argv[4], aggregate_visit_matrix);
             

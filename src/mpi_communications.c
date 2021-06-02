@@ -137,6 +137,7 @@ void receive_and_save_result_matrix(const char* path, const double_sparse_matrix
     matrix_element *buffer = malloc((aggregate_mat.n_elements+2)*sizeof(matrix_element));
 
     build_mpi_tuple(&mpi_tuple);
+# pragma omp critical 
     MPI_Recv(buffer, aggregate_mat.n_elements+1, mpi_tuple, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
     MPI_Type_free(&mpi_tuple);
 
