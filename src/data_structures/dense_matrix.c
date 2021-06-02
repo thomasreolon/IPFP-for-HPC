@@ -51,3 +51,18 @@ void util_print_dense(const double_dense_matrix mat){
         printf("- (%d,%d): %lf\n", i/mat.n_cols, i%mat.n_cols, mat.data[i]);
     printf("\n");
 }
+
+
+void transpose_dense_matrix(double_dense_matrix *mat){
+    int n_cols = mat->n_cols, n_rows=mat->n_rows;
+    double *transposed = malloc(n_cols*n_rows*sizeof(double));
+
+    for (int i=0; i<mat->n_cols*mat->n_rows; i++){
+        int new_idx = i/n_cols   + (i%n_cols)*n_rows;
+        transposed[new_idx] = mat->data[i];
+    }
+    free(mat->data);
+    mat->data = transposed;
+    mat->n_cols = n_rows;
+    mat->n_rows = n_cols;
+}

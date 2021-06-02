@@ -4,6 +4,18 @@
 #include <stdio.h>
 #include "data_structures/sparse_matrix.h"
 #include "data_structures/dense_matrix.h"
+#include "data_structures/ipfp_functions.h"
+
+
+int get_num_hours(double_dense_matrix *cbg, int rank, int argc, char *argv[]){
+    int num_hours = cbg->n_rows;
+    if (argc==6 && atoi(argv[5])>0)
+        num_hours = atoi(argv[5]);            // user specified the number of hours
+    else
+        MPI_Bcast( &num_hours , 1 , MPI_INT , 0 , MPI_COMM_WORLD);
+    return num_hours;
+}
+
 
 void build_mpi_tuple(MPI_Datatype *mpi_tuple)
 {
@@ -48,66 +60,7 @@ double_sparse_matrix broadcast_sparse_matrix(double_sparse_matrix *mat, int rank
     MPI_Type_free(&mpi_tuple);
 }
 
-double_sparse_matrix scatter_poi_matrix(double_sparse_matrix *mat, int n_rows, int tot_columns, int *counts, int* displacements){
-    int count_elements_per_hour[tot_columns], offsets[tot_columns];
-    int world_size, rank;
-    MPI_Datatype mpi_tuple;
-    double_sparse_matrix local_mat;
-    matrix_element *buffer;
-
-
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    world_size--;
-
-    if (rank==0){
-        // to have contiguos columns
-        memset( count_elements_per_hour, 0, tot_columns*sizeof(int) );
-        buffer = malloc(mat->n_elements*sizeof(matrix_element));
-        for (int i=0; i<mat->n_elements; i++)
-            count_elements_per_hour[mat->data[i].col]++;
-        offsets[0] =  count_elements_per_hour[0];
-        for (int i=1; i<tot_columns; i++)
-            offsets[i] = offsets[i-1] + count_elements_per_hour[i];
-
-        for (int i=0; i<mat->n_elements; i++){
-            int index = --offsets[mat->data[i].col];
-            buffer[index] = mat->data[i];
-        }
-    }
-    
-    /// counts and displacements for scatterv
-    int hour_per_proc = tot_columns / world_size;
-    memset( counts, 0, (world_size+1)*sizeof(int) );
-    MPI_Bcast( count_elements_per_hour , tot_columns , MPI_INT , 0 , MPI_COMM_WORLD);
-    MPI_Bcast( offsets , tot_columns , MPI_INT , 0 , MPI_COMM_WORLD);
-    counts[0]=0; displacements[0] = 0;
-    for (int i=0; i<world_size; i++){
-        for (int j=i*hour_per_proc; j<(i+1)*hour_per_proc; j++){
-            counts[i+1] += count_elements_per_hour[j];
-        }
-        displacements[i+1] = offsets[i*hour_per_proc];
-    }
-
-    /// last process will do the last hours
-    for (int j=world_size*hour_per_proc; j<tot_columns; j++){
-        counts[world_size] += count_elements_per_hour[j];
-    }
-
-    // scatter hours between processes
-    hour_per_proc += (rank==world_size)? tot_columns % world_size : 0;
-    build_mpi_tuple(&mpi_tuple);
-    printf("%d %d (%d) \n", n_rows, hour_per_proc, rank);
-    create_double_sparse_matrix(&local_mat, n_rows, hour_per_proc, counts[rank]);
-    MPI_Scatterv(buffer, counts, displacements, mpi_tuple, local_mat.data, counts[rank], mpi_tuple, 0, MPI_COMM_WORLD);
-
-    MPI_Type_free(&mpi_tuple);
-    if (rank==0) free(buffer);
-    return local_mat;
-}
-
-
-double_dense_matrix scatter_cbg_marginals(double_dense_matrix* mat, int tot_rows, int n_cols, int *counts, int* displacements){
+double_dense_matrix scatter_poi_marginals(double_dense_matrix* mat, int tot_rows, int n_cols, int *counts, int* displacements){
     double_dense_matrix local_mat;
     int world_size, rank;
 
@@ -133,3 +86,63 @@ double_dense_matrix scatter_cbg_marginals(double_dense_matrix* mat, int tot_rows
 
     return local_mat;
 }
+
+
+
+double_dense_matrix scatter_marginals(double_dense_matrix* mat, int tot_rows, int n_cols, int *counts, int* displacements){
+    double_dense_matrix local_mat;
+    int world_size, rank;
+
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    world_size--; // process 0 does only I/O on files
+    
+    // compute counts / offsets
+    int hour_per_proc = tot_rows / world_size;
+    counts[0]=0; displacements[0] = 0;
+    for (int i=0; i<world_size; i++){
+        counts[i+1] = n_cols * hour_per_proc;
+        displacements[i+1] = i*hour_per_proc * n_cols;
+    }
+    counts[world_size] += (tot_rows % world_size)*n_cols;
+
+    // allocate space to receive data
+    hour_per_proc += (rank==world_size)? (tot_rows % world_size) : 0;
+    create_double_dense_matrix(&local_mat, hour_per_proc, n_cols);
+
+    // send data
+    MPI_Scatterv(mat->data, counts, displacements, MPI_DOUBLE, local_mat.data, counts[rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    return local_mat;
+}
+
+
+void send_result_matrix_to_master(const double_sparse_matrix mat, int hour){
+    int infos[3];
+    MPI_Datatype mpi_tuple;
+
+    mat.data[mat.n_elements].row = hour;  //--> we use the attribute row to append the info "which hour is this matrix"
+
+    build_mpi_tuple(&mpi_tuple);
+    MPI_Send( mat.data, mat.n_elements+1, mpi_tuple, 0, 0, MPI_COMM_WORLD);
+    MPI_Type_free(&mpi_tuple);
+}
+
+void receive_and_save_result_matrix(const char* path, const double_sparse_matrix aggregate_mat){
+    int infos[3];
+    char filename[1024];
+    MPI_Datatype mpi_tuple;
+    MPI_Status status;
+    matrix_element *buffer = malloc((aggregate_mat.n_elements+1)*sizeof(matrix_element));
+
+    build_mpi_tuple(&mpi_tuple);
+    MPI_Recv(buffer, aggregate_mat.n_elements+1, mpi_tuple, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+    MPI_Type_free(&mpi_tuple);
+
+    int hour = buffer[aggregate_mat.n_elements].row; // we used the trik of saving the hour in the last element
+    sprintf(filename, "%s/result_%d.txt", path, hour);
+    save_result_matrix(filename, buffer, aggregate_mat.n_rows, aggregate_mat.n_cols, aggregate_mat.n_elements);
+
+    free(buffer);
+}
+
