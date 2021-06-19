@@ -6,7 +6,7 @@ An IPFP implentation based on OpenMPI and OpenMP to speed up the process of comp
 
 you need to have `OpenMPI` and `OpenMP` on your machine (new versions)
 
-in the branch 'older_version' you can find a versions that can compile with older mpicc versions.
+in the branch 'older_version' you can find a version that is compatible with MPICH-3.2
 
 #### Usage
 
