@@ -137,6 +137,9 @@ void receive_and_save_result_matrix(const char* path, const double_sparse_matrix
 
     build_mpi_tuple(&mpi_tuple);
     MPI_Recv(buffer, aggregate_mat.n_elements+1, mpi_tuple, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+    if (status.MPI_ERROR != MPI_SUCCESS){
+        printf("error while receivind data from %d\n", status.MPI_SOURCE);
+    }
     MPI_Type_free(&mpi_tuple);
 
     int hour = buffer[aggregate_mat.n_elements].row; // we used the trik of saving the hour in the last element
